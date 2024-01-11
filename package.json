@@ -1,7 +1,7 @@
 {
   "name": "react-native-bluetooth-printer",
   "version": "0.1.0",
-  "description": "Library to support connect and buffer printing with bluetooth",
+  "description": "Pacote de comunicação com impressoras bluetooth",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
   "types": "lib/typescript/src/index.d.ts",
@@ -32,12 +32,16 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
-    "release": "release-it"
+    "release": "release-it",
+    "style:fix": "prettier --write \"src/**/*.ts\"",
+    "style:check": "prettier --check \"src/**/*.ts\""
   },
   "keywords": [
     "react-native",
     "ios",
-    "android"
+    "android",
+    "bluetooth",
+    "printer"
   ],
   "repository": {
     "type": "git",
@@ -103,7 +107,7 @@
   },
   "release-it": {
     "git": {
-      "commitMessage": "chore: release ${version}",
+      "commitMessage": "release ${version}",
       "tagName": "v${version}"
     },
     "npm": {
