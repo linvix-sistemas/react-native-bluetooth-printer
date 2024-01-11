@@ -2,7 +2,8 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "react-native-bluetooth-printer": ["./src/index"]
+      "react-native-bluetooth-printer": ["./src/index"],
+      "@linvix-sistemas/react-native-bluetooth-printer": ["./src/index"],
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

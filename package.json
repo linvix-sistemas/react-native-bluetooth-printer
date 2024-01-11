@@ -1,5 +1,5 @@
 {
-  "name": "react-native-bluetooth-printer",
+  "name": "@linvix-sistemas/react-native-bluetooth-printer",
   "version": "0.1.0",
   "description": "Pacote de comunicação com impressoras bluetooth",
   "main": "lib/commonjs/index",
