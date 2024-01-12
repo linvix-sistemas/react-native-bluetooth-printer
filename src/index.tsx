@@ -1,4 +1,4 @@
-import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
+import { NativeModules, DeviceEventEmitter, Platform } from 'react-native';
 
 import type {
   iDevice,
@@ -23,10 +23,6 @@ const BluetoothPrinterModule = NativeModules.BluetoothPrinter
         },
       }
     );
-
-const BluetoothPrinterEventEmitter = new NativeEventEmitter(
-  BluetoothPrinterModule
-);
 
 /**
  * Solicita a permissão necessária para poder utilizar os recursos
@@ -119,7 +115,7 @@ const printRaw = async (bytes: any) => {
  * Quando localizar um novo dispositivo bluetooth
  */
 const onDeviceFound = (callback: (device: iDevice) => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
+  const listener = DeviceEventEmitter.addListener(
     'EVENT_DEVICE_FOUND',
     callback
   );
@@ -130,7 +126,7 @@ const onDeviceFound = (callback: (device: iDevice) => void) => {
  * Quando enviar os dispositivos já pareados
  */
 const onDeviceAlreadyPaired = (callback: (devices: iDevice[]) => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
+  const listener = DeviceEventEmitter.addListener(
     'EVENT_DEVICE_ALREADY_PAIRED',
     callback
   );
@@ -141,7 +137,7 @@ const onDeviceAlreadyPaired = (callback: (devices: iDevice[]) => void) => {
  * Quando finalizar a pesquisa de dispositivos
  */
 const onScanDone = (callback: (data: iScanDevicesResponse) => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
+  const listener = DeviceEventEmitter.addListener(
     'EVENT_DEVICE_DISCOVER_DONE',
     callback
   );
@@ -152,7 +148,7 @@ const onScanDone = (callback: (data: iScanDevicesResponse) => void) => {
  * Quando receber aviso do bluetooth não suportado
  */
 const onBluetoothNotSupported = (callback: () => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
+  const listener = DeviceEventEmitter.addListener(
     'EVENT_BLUETOOTH_NOT_SUPPORT',
     callback
   );
@@ -163,10 +159,7 @@ const onBluetoothNotSupported = (callback: () => void) => {
  * Quando conectar em um dispositivo
  */
 const onDeviceConnect = (callback: (device: iDevice) => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
-    'EVENT_CONNECTED',
-    callback
-  );
+  const listener = DeviceEventEmitter.addListener('EVENT_CONNECTED', callback);
   return listener;
 };
 
@@ -174,7 +167,7 @@ const onDeviceConnect = (callback: (device: iDevice) => void) => {
  * Quando desconectar o dispositivo
  */
 const onDeviceDisconnect = (callback: () => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
+  const listener = DeviceEventEmitter.addListener(
     'EVENT_CONNECTION_LOST',
     callback
   );
@@ -185,7 +178,7 @@ const onDeviceDisconnect = (callback: () => void) => {
  * Quando receber mensagem que não foi possível se conectar
  */
 const onUnableToConnect = (callback: () => void) => {
-  const listener = BluetoothPrinterEventEmitter.addListener(
+  const listener = DeviceEventEmitter.addListener(
     'EVENT_UNABLE_CONNECT',
     callback
   );
