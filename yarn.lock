@@ -2425,6 +2425,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@linvix-sistemas/react-native-escpos-buffer@npm:^1.3.1":
+  version: 1.3.1
+  resolution: "@linvix-sistemas/react-native-escpos-buffer@npm:1.3.1"
+  dependencies:
+    buffer: ^6.0.3
+    iconv-lite: ^0.5.0
+    tslib: ~1.10.0
+  checksum: df2427e32cc0d362be713f4a3f5e7a5716dcf771e618a211b911b3e7cf60c5b702777b549fa381c2fc4c5f36a22c1b504af6d915e78e6081361ef384271f1cad
+  languageName: node
+  linkType: hard
+
 "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1":
   version: 5.1.1-v1
   resolution: "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1"
@@ -7157,6 +7168,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"iconv-lite@npm:^0.5.0":
+  version: 0.5.2
+  resolution: "iconv-lite@npm:0.5.2"
+  dependencies:
+    safer-buffer: ">= 2.1.2 < 3"
+  checksum: aa184914b74db7a23feb98cad3e4ed22058f2aa27c5613a127327423b3230a0b934665c2aecf5dc657a58a59891c92fd1e721ed160d1b2f3c682bc26e3fe3f14
+  languageName: node
+  linkType: hard
+
 "iconv-lite@npm:^0.6.2":
   version: 0.6.3
   resolution: "iconv-lite@npm:0.6.3"
@@ -10815,6 +10835,7 @@ __metadata:
     "@babel/core": ^7.20.0
     "@babel/preset-env": ^7.20.0
     "@babel/runtime": ^7.20.0
+    "@linvix-sistemas/react-native-escpos-buffer": ^1.3.1
     "@react-native/babel-preset": 0.73.19
     "@react-native/metro-config": 0.73.3
     "@react-native/typescript-config": 0.73.1
@@ -12425,6 +12446,13 @@ __metadata:
   version: 2.6.2
   resolution: "tslib@npm:2.6.2"
   checksum: 329ea56123005922f39642318e3d1f0f8265d1e7fcb92c633e0809521da75eeaca28d2cf96d7248229deb40e5c19adf408259f4b9640afd20d13aecc1430f3ad
+  languageName: node
+  linkType: hard
+
+"tslib@npm:~1.10.0":
+  version: 1.10.0
+  resolution: "tslib@npm:1.10.0"
+  checksum: 1d0450dc6f64b918b14acaf3b956ebe1c72d7401c632adce932a60e3cd8d2a70f6040ceef6a7c3561146c3f29bcf584c41c2e09a5d20a27d6c3057f0d5f2a836
   languageName: node
   linkType: hard
 
