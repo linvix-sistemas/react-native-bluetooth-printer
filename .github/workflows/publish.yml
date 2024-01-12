@@ -25,3 +25,5 @@ jobs:
         run: yarn npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+          NPM_AUTH_TOKEN: ${{secrets.npm_token}}
+          npmAuthToken: ${{secrets.npm_token}}
