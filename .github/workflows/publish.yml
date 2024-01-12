@@ -19,7 +19,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build package
-        run: npm prepare
+        run: npm run prepare
 
       - name: Publish package
         run: npm publish --access public
