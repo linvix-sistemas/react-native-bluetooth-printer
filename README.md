@@ -1,22 +1,15 @@
-# react-native-bluetooth-printer
+# @linvix-sistemas/react-native-bluetooth-printer
 
 Library to support connect and buffer printing with bluetooth
 
 ## Installation
 
 ```sh
-npm install react-native-bluetooth-printer
+npm install @linvix-sistemas/react-native-bluetooth-printer
 ```
 
 ## Usage
 
-```js
-import { multiply } from 'react-native-bluetooth-printer';
-
-// ...
-
-const result = await multiply(3, 7);
-```
 
 ## Contributing
 
