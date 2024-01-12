@@ -301,6 +301,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
         mService.write(decoded);
 
+        promise.resolve(true);
       } else {
         promise.reject("NOT_CONNECTED_TO_PRINTER");
       }
