@@ -19,11 +19,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build package
-        run: yarn prepare
+        run: npm prepare
 
       - name: Publish package
-        run: yarn npm publish --access public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
-          NPM_AUTH_TOKEN: ${{secrets.npm_token}}
-          npmAuthToken: ${{secrets.npm_token}}
