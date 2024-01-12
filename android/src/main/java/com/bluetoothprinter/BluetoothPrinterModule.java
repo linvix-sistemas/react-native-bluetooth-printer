@@ -65,7 +65,6 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   private static final int REQUEST_CONNECT_DEVICE = 1;
   private static final int REQUEST_ENABLE_BT = 2;
-
   private static final int REQUEST_PERMISSION = 3;
 
   public static final int MESSAGE_STATE_CHANGE = BluetoothService.MESSAGE_STATE_CHANGE;
@@ -75,8 +74,6 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   public static final int MESSAGE_CONNECTION_LOST = BluetoothService.MESSAGE_CONNECTION_LOST;
   public static final int MESSAGE_UNABLE_CONNECT = BluetoothService.MESSAGE_UNABLE_CONNECT;
-  public static final String DEVICE_NAME = BluetoothService.DEVICE_NAME;
-  public static final String TOAST = BluetoothService.TOAST;
 
   private static final Map<String, Promise> promiseMap = Collections.synchronizedMap(new HashMap<String, Promise>());
   private static final String PROMISE_ENABLE_BT = "ENABLE_BT";
@@ -85,6 +82,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   private static final String PROMISE_PERMISSION = "PERMISSION";
 
   private String mConnectedDeviceName = null;
+  private String mConnectedDeviceAddress = null;
   private BluetoothAdapter mBluetoothAdapter = null;
   private BluetoothService mService = null;
 
@@ -114,8 +112,10 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     constants.put(EVENT_CONNECTION_LOST, EVENT_CONNECTION_LOST);
     constants.put(EVENT_UNABLE_CONNECT, EVENT_UNABLE_CONNECT);
     constants.put(EVENT_CONNECTED, EVENT_CONNECTED);
-    constants.put(DEVICE_NAME, DEVICE_NAME);
     constants.put(EVENT_BLUETOOTH_NOT_SUPPORT, EVENT_BLUETOOTH_NOT_SUPPORT);
+
+    constants.put(BluetoothService.DEVICE_NAME, BluetoothService.DEVICE_NAME);
+    constants.put(BluetoothService.DEVICE_ADDRESS, BluetoothService.DEVICE_ADDRESS);
     return constants;
   }
 
@@ -130,6 +130,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
       // Get local Bluetooth adapter
       mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     }
+
     // If the adapter is null, then Bluetooth is not supported
     if (mBluetoothAdapter == null) {
       sendReactNativeEvent(EVENT_BLUETOOTH_NOT_SUPPORT, Arguments.createMap());
@@ -157,10 +158,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
         // put on promises
         promiseMap.put(PROMISE_PERMISSION, promise);
       } else {
+        Log.e(TAG, "Activity not found");
         promise.reject("ACTIVITY_NOT_FOUND");
       }
     } else {
-      promise.resolve(true);
+      promise.resolve(createRequestPermissionResponse(true, false).toString());
     }
   }
 
@@ -256,7 +258,6 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     } else {
       promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
     }
-
   }
 
   @ReactMethod
@@ -412,18 +413,21 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     Log.d(TAG, "on bluetoothServiceStatChange:" + state);
     switch (state) {
       case BluetoothService.STATE_CONNECTED, MESSAGE_DEVICE_NAME -> {
-        mConnectedDeviceName = (String) bundle.get(DEVICE_NAME);
+        mConnectedDeviceName = (String) bundle.get(BluetoothService.DEVICE_NAME);
+        mConnectedDeviceAddress = (String) bundle.get(BluetoothService.DEVICE_ADDRESS);
+
+        WritableNativeMap params = new WritableNativeMap();
+
+        params.putString("name", mConnectedDeviceName);
+        params.putString("address", mConnectedDeviceAddress);
 
         Promise p = promiseMap.remove(PROMISE_CONNECT);
 
-        if (p == null) {
-          WritableMap params = Arguments.createMap();
-          params.putString(DEVICE_NAME, mConnectedDeviceName);
-          sendReactNativeEvent(EVENT_CONNECTED, params);
-        } else {
-          p.resolve(mConnectedDeviceName);
+        if (p != null) {
+          p.resolve(params.toString());
         }
 
+        sendReactNativeEvent(EVENT_CONNECTED, params);
       }
 
       case MESSAGE_CONNECTION_LOST -> {
@@ -452,12 +456,12 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
       if (p != null) {
         if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
           Log.i(TAG, "Permission granted");
-          p.resolve(true);
+          p.resolve(createRequestPermissionResponse(true, false).toString());
         }
 
         if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
           Log.i(TAG, "Permission denied");
-          p.resolve(false);
+          p.resolve(createRequestPermissionResponse(false, true).toString());
         }
       } else {
         Log.e(TAG, "Permission promise not found");
@@ -504,6 +508,13 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     return createEnableBluetoothResponse(success, false);
   }
 
+  @SuppressLint("MissingPermission")
+  private WritableNativeMap createRequestPermissionResponse(Boolean success, Boolean rejected) {
+    WritableNativeMap writableNativeMap = new WritableNativeMap();
+    writableNativeMap.putBoolean("success", Boolean.TRUE.equals(success));
+    writableNativeMap.putBoolean("rejected", Boolean.TRUE.equals(rejected));
+    return writableNativeMap;
+  }
 
   @Override
   public void onNewIntent(Intent intent) {
