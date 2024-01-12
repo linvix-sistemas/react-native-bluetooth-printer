@@ -286,6 +286,30 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   }
 
+  @ReactMethod
+  public void printRaw(ReadableArray message, final Promise promise) {
+    BluetoothAdapter adapter = this.getBluetoothAdapter();
+    if (mService != null && adapter.isEnabled()) {
+
+      if (mService.getState() == BluetoothService.STATE_CONNECTED) {
+
+        byte[] decoded = new byte[message.size()];
+
+        for (int i = 0; i < message.size(); i++) {
+          decoded[i] = new Integer(message.getInt(i)).byteValue();
+        }
+
+        mService.write(decoded);
+
+      } else {
+        promise.reject("NOT_CONNECTED_TO_PRINTER");
+      }
+
+    } else {
+      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
+    }
+  }
+
   @SuppressLint("MissingPermission")
   private void cancelScanDiscovery() {
     try {
