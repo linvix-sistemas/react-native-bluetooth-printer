@@ -352,7 +352,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     Log.d(TAG, "onActivityResult " + resultCode);
     switch (requestCode) {
-      case REQUEST_CONNECT_DEVICE -> {
+      case REQUEST_CONNECT_DEVICE: {
         // When DeviceListActivity returns with a device to connect
         if (resultCode == Activity.RESULT_OK) {
           // Get the device MAC address
@@ -368,7 +368,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
         }
       }
 
-      case REQUEST_ENABLE_BT -> {
+      case REQUEST_ENABLE_BT: {
         Promise promise = promiseMap.remove(PROMISE_ENABLE_BT);
 
         // When the request to enable Bluetooth returns
@@ -430,7 +430,8 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   public void onBluetoothServiceStateChanged(int state, Map<String, Object> bundle) {
     Log.d(TAG, "on bluetoothServiceStatChange:" + state);
     switch (state) {
-      case BluetoothService.STATE_CONNECTED, MESSAGE_DEVICE_NAME -> {
+      case BluetoothService.MESSAGE_DEVICE_NAME:
+      case BluetoothService.STATE_CONNECTED: {
         mConnectedDeviceName = (String) bundle.get(BluetoothService.DEVICE_NAME);
         mConnectedDeviceAddress = (String) bundle.get(BluetoothService.DEVICE_ADDRESS);
 
@@ -448,11 +449,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
         sendReactNativeEvent(EVENT_CONNECTED, params);
       }
 
-      case MESSAGE_CONNECTION_LOST -> {
+      case MESSAGE_CONNECTION_LOST: {
         sendReactNativeEvent(EVENT_CONNECTION_LOST, null);
       }
 
-      case MESSAGE_UNABLE_CONNECT -> {
+      case MESSAGE_UNABLE_CONNECT: {
         Promise p = promiseMap.remove(PROMISE_CONNECT);
 
         if (p == null) {
@@ -461,7 +462,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
           p.reject(BluetoothService.UNABLE_CONNECT);
         }
       }
-      default -> {
+      default: {
       }
     }
   }
