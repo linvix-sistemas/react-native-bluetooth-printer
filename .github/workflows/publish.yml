@@ -9,7 +9,7 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
-  build-and-publish-library:
+  build-library:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -21,7 +21,10 @@ jobs:
       - name: Build package
         run: npm run prepare
 
-      - name: Publish package
-        run: npm publish --access public
+  publish:
+    needs: build-library
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
