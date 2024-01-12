@@ -29,6 +29,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -142,7 +143,6 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @ReactMethod
   @SuppressLint("MissingPermission")
-  @RequiresApi(api = Build.VERSION_CODES.M)
   public void requestPermission(final Promise promise) {
     Log.e(TAG, "Requesting permission to access bluetooth device");
     // check if have access location
@@ -229,10 +229,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     } else {
       cancelScanDiscovery();
 
-      WritableNativeMap params = new WritableNativeMap();
-      params.putArray("paired", (ReadableArray) createMapDevices(getBondedDevices().values()));
-
-      sendReactNativeEvent(EVENT_DEVICE_ALREADY_PAIRED, params);
+      sendReactNativeEventArray(EVENT_DEVICE_ALREADY_PAIRED, createMapDevices(getBondedDevices().values()));
 
       if (ActivityCompat.checkSelfPermission(reactContext.getCurrentActivity(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
         promise.reject("PERMISSION_NOT_GRANTED");
@@ -517,6 +514,10 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   }
 
   private void sendReactNativeEvent(String event, @Nullable WritableMap params) {
+    getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit(event, params);
+  }
+
+  private void sendReactNativeEventArray(String event, @Nullable WritableArray params) {
     getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit(event, params);
   }
 
