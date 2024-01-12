@@ -154,6 +154,10 @@ export default function App() {
 
     await printer.cutter();
 
+    if (feed) {
+      await printer.feed(feed);
+    }
+
     const buffer = connection.buffer();
 
     const bytes = convertBufferToBytes(buffer);
@@ -211,14 +215,30 @@ export default function App() {
         style={{
           flexDirection: 'row',
           justifyContent: 'space-between',
-          marginBottom: 20,
+          margin: 20,
         }}
       >
-        <TouchableOpacity onPress={goEnableBluetooth}>
+        <TouchableOpacity
+          onPress={goEnableBluetooth}
+          style={{
+            borderColor: '#405e7b',
+            borderWidth: 1,
+            borderRadius: 5,
+            padding: 10,
+          }}
+        >
           <Text style={{ color: '#405e7b' }}>Ligar bluetooth</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={goScanDevices}>
+        <TouchableOpacity
+          onPress={goScanDevices}
+          style={{
+            borderColor: '#405e7b',
+            borderWidth: 1,
+            borderRadius: 5,
+            padding: 10,
+          }}
+        >
           <Text style={{ color: '#405e7b' }}>Buscar dispositivos</Text>
         </TouchableOpacity>
       </View>
@@ -230,7 +250,15 @@ export default function App() {
           marginBottom: 20,
         }}
       >
-        <TouchableOpacity onPress={goPrint}>
+        <TouchableOpacity
+          onPress={goPrint}
+          style={{
+            borderColor: '#405e7b',
+            borderWidth: 1,
+            borderRadius: 5,
+            padding: 10,
+          }}
+        >
           <Text style={{ color: '#405e7b' }}>Imprimir texto</Text>
         </TouchableOpacity>
       </View>
