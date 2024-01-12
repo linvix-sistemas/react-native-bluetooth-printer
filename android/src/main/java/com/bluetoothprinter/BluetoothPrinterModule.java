@@ -383,11 +383,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
         if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
           if (foundedDevices.get(device.getAddress()) == null) {
             foundedDevices.put(device.getAddress(), device);
-
-            WritableNativeMap params = new WritableNativeMap();
-            params.putMap("device", createMapDevice(device));
-
-            sendReactNativeEvent(EVENT_DEVICE_FOUND, params);
+            sendReactNativeEvent(EVENT_DEVICE_FOUND, createMapDevice(device));
           }
         }
       }
