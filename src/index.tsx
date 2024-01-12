@@ -108,6 +108,14 @@ const unpair = async (address: string) => {
 };
 
 /**
+ * Envia os bytes para impressão
+ */
+const printRaw = async (bytes: any) => {
+  const connectPromise = await BluetoothPrinterModule.printRaw(bytes);
+  return connectPromise as boolean;
+};
+
+/**
  * Quando localizar um novo dispositivo bluetooth
  */
 const onDeviceFound = (callback: (device: iDevice) => void) => {
@@ -193,6 +201,7 @@ const BluetoothPrinter = {
   scanDevices,
   connect,
   disconnect,
+  printRaw,
   unpair,
 
   onBluetoothNotSupported,
@@ -204,4 +213,5 @@ const BluetoothPrinter = {
   onScanDone,
 };
 
+export * from './types';
 export default BluetoothPrinter;
