@@ -21,9 +21,7 @@ jobs:
       - name: Build package
         run: yarn prepare
 
-  publish:
-    runs-on: ubuntu-latest
-    steps:
-      - run: yarn publish --access public
+      - name: Publish package
+        run: yarn publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
