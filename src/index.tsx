@@ -25,6 +25,16 @@ const BluetoothPrinterModule = NativeModules.BluetoothPrinter
     );
 
 /**
+ * Solicita a abertura das configurações do app
+ */
+const openSettings = async (): Promise<boolean> => {
+  const settingsPromise = JSON.parse(
+    await BluetoothPrinterModule.openSettings()
+  );
+  return settingsPromise as boolean;
+};
+
+/**
  * Solicita a permissão necessária para poder utilizar os recursos
  */
 const requestPermission = async (): Promise<iRequestPermissionResponse> => {
@@ -186,6 +196,7 @@ const onUnableToConnect = (callback: () => void) => {
 };
 
 const BluetoothPrinter = {
+  openSettings,
   requestPermission,
   enableBluetooth,
   disableBluetooth,

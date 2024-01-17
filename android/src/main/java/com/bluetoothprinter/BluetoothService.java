@@ -54,6 +54,8 @@ public class BluetoothService {
 
   public static final String BLUETOOTH_NOT_ENABLED = "BLUETOOTH_NOT_ENABLED";
 
+  public static final String PERMISSION_NOT_GRANTED = "PERMISSION_NOT_GRANTED";
+
   public static final String NOT_CONNECTED = "NOT_CONNECTED";
 
   public static final String UNABLE_CONNECT = "UNABLE_CONNECT";

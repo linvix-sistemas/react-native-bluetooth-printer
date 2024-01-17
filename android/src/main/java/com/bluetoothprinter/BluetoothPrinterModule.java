@@ -10,7 +10,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -60,12 +62,14 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   private static final int REQUEST_CONNECT_DEVICE = 1;
   private static final int REQUEST_ENABLE_BT = 2;
   private static final int REQUEST_PERMISSION = 3;
+  private static final int REQUEST_SETTINGS = 4;
 
   private static final Map<String, Promise> promiseMap = Collections.synchronizedMap(new HashMap<String, Promise>());
   private static final String PROMISE_ENABLE_BT = "ENABLE_BT";
   private static final String PROMISE_SCAN = "SCAN";
   private static final String PROMISE_CONNECT = "CONNECT";
   private static final String PROMISE_PERMISSION = "PERMISSION";
+  private static final String PROMISE_SETTINGS = "SETTINGS";
 
   private String mConnectedDeviceName = null;
   private String mConnectedDeviceAddress = null;
@@ -125,35 +129,88 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     return mBluetoothAdapter;
   }
 
+  private boolean getPermissionState() {
+    // Android 12+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+      int permissionBluetoothConnectChecked = ContextCompat.checkSelfPermission(reactContext, Manifest.permission.BLUETOOTH_CONNECT);
+      int permissionBluetoothScanChecked = ContextCompat.checkSelfPermission(reactContext, Manifest.permission.BLUETOOTH_SCAN);
 
-  @ReactMethod
-  @SuppressLint("MissingPermission")
-  public void requestPermission(final Promise promise) {
-    Log.i(TAG, "Requesting permission to access bluetooth device");
-    // check if have access location
-    int permissionChecked = ContextCompat.checkSelfPermission(reactContext, Manifest.permission.ACCESS_FINE_LOCATION);
-    if (permissionChecked == PackageManager.PERMISSION_DENIED) {
-
-      PermissionAwareActivity activity = (PermissionAwareActivity) reactContext.getCurrentActivity();
-
-      if (activity != null) {
-        // request permission to location
-        activity.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_PERMISSION, this);
-
-        // put on promises
-        promiseMap.put(PROMISE_PERMISSION, promise);
-      } else {
-        Log.e(TAG, "Activity not found");
-        promise.reject("ACTIVITY_NOT_FOUND");
-      }
+      return permissionBluetoothConnectChecked == PackageManager.PERMISSION_GRANTED && permissionBluetoothScanChecked == PackageManager.PERMISSION_GRANTED;
     } else {
-      promise.resolve(createRequestPermissionResponse(true, false).toString());
+      int permissionChecked = ContextCompat.checkSelfPermission(reactContext, Manifest.permission.ACCESS_FINE_LOCATION);
+
+      return permissionChecked == PackageManager.PERMISSION_GRANTED;
     }
   }
 
   @ReactMethod
   @SuppressLint("MissingPermission")
+  public void requestPermission(final Promise promise) {
+    Log.i(TAG, "Requesting permission to access bluetooth device");
+
+    // check if app has permission to interact with bluetooth device
+    boolean hasPermission = getPermissionState();
+
+    // if has permission, stop script
+    if (hasPermission) {
+      promise.resolve(createRequestPermissionResponse(true, false).toString());
+      return;
+    }
+
+    PermissionAwareActivity activity = (PermissionAwareActivity) reactContext.getCurrentActivity();
+
+    if (activity == null) {
+      Log.e(TAG, "Activity not found");
+      promise.reject("ACTIVITY_NOT_FOUND");
+      return;
+    }
+
+    // Android 12+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+      try {
+        // request permission to location
+        activity.requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN}, REQUEST_PERMISSION, this);
+
+        // put on promises
+        promiseMap.put(PROMISE_PERMISSION, promise);
+      } catch (Exception e) {
+        promise.resolve(createRequestPermissionResponse(false, true).toString());
+      }
+    } else {
+      try {
+        // request permission to location
+        activity.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_PERMISSION, this);
+
+        // put on promises
+        promiseMap.put(PROMISE_PERMISSION, promise);
+      } catch (Exception e) {
+        promise.resolve(createRequestPermissionResponse(false, true).toString());
+      }
+    }
+
+  }
+
+  @ReactMethod
+  public void openSettings(final Promise promise) {
+    Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+
+    intent.setData(Uri.fromParts("package", getReactApplicationContext().getPackageName(), null));
+
+    // put on promises
+    promiseMap.put(PROMISE_SETTINGS, promise);
+
+    // request to enable bluetooth
+    this.reactContext.startActivityForResult(intent, REQUEST_SETTINGS, Bundle.EMPTY);
+  }
+
+  @ReactMethod
+  @SuppressLint("MissingPermission")
   public void enableBluetooth(final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to interact with bluetooth not granted"));
+      return;
+    }
+
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       Log.e(TAG, "Bluetooth not supported on this device");
@@ -199,6 +256,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @ReactMethod
   public void isDeviceConnected(final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to search for devices was not granted"));
+      return;
+    }
+
     if (mService != null) {
       promise.resolve(mService.getState() == BluetoothService.STATE_CONNECTED);
     } else {
@@ -206,8 +268,15 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     }
   }
 
+
   @ReactMethod
+  @SuppressLint("MissingPermission")
   public void scanDevices(final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to search for devices was not granted"));
+      return;
+    }
+
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
@@ -215,11 +284,6 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
       cancelScanDiscovery();
 
       sendReactNativeEventArray(EVENT_DEVICE_ALREADY_PAIRED, createMapDevices(getBondedDevices().values()));
-
-      if (ActivityCompat.checkSelfPermission(reactContext.getCurrentActivity(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-        promise.reject("PERMISSION_NOT_GRANTED", new Exception("Permission required to search for devices was not granted"));
-        return;
-      }
 
       if (adapter.startDiscovery()) {
         promiseMap.put(PROMISE_SCAN, promise);
@@ -232,6 +296,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @ReactMethod
   public void connect(String address, final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to search for devices was not granted"));
+      return;
+    }
+
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
@@ -248,6 +317,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @ReactMethod
   public void disconnect(String address, final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to search for devices was not granted"));
+      return;
+    }
+
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
@@ -267,6 +341,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @ReactMethod
   public void unpair(String address, final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to search for devices was not granted"));
+      return;
+    }
+
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
@@ -283,6 +362,11 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @ReactMethod
   public void printRaw(ReadableArray message, final Promise promise) {
+    if (!getPermissionState()) {
+      promise.reject(BluetoothService.PERMISSION_NOT_GRANTED, new Exception("Permission required to search for devices was not granted"));
+      return;
+    }
+
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
@@ -369,6 +453,19 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
         }
       }
 
+      case REQUEST_SETTINGS: {
+        Promise promise = promiseMap.remove(PROMISE_SETTINGS);
+
+        if (promise != null) {
+          // When the request to enable Bluetooth returns
+          if (resultCode == Activity.RESULT_OK) {
+            promise.resolve(true);
+          } else {
+            promise.resolve(false);
+          }
+        }
+      }
+
       case REQUEST_ENABLE_BT: {
         Promise promise = promiseMap.remove(PROMISE_ENABLE_BT);
 
@@ -384,7 +481,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
           // User did not enable Bluetooth or an error occurred
           Log.d(TAG, BluetoothService.BLUETOOTH_NOT_ENABLED);
           if (promise != null) {
-            promise.reject(createEnableBluetoothResponse(false, true).toString());
+            promise.resolve(createEnableBluetoothResponse(false, true).toString());
           }
         }
       }
@@ -488,15 +585,37 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     if (requestCode == REQUEST_PERMISSION) {
       Promise p = promiseMap.remove(PROMISE_PERMISSION);
       if (p != null) {
-        if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+        if (getPermissionState()) {
           Log.i(TAG, "Permission granted");
           p.resolve(createRequestPermissionResponse(true, false).toString());
-        }
-
-        if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
-          Log.i(TAG, "Permission denied");
+        } else {
+          Log.i(TAG, "Permission granted");
           p.resolve(createRequestPermissionResponse(false, true).toString());
         }
+
+//        // Android 12+
+//        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+//          if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+//            Log.i(TAG, "Permission granted");
+//            p.resolve(createRequestPermissionResponse(true, false).toString());
+//          }
+//
+//          if (grantResults[0] == PackageManager.PERMISSION_DENIED || grantResults[1] == PackageManager.PERMISSION_DENIED) {
+//            Log.i(TAG, "Permission denied");
+//            p.resolve(createRequestPermissionResponse(false, true).toString());
+//          }
+//        } else {
+//          if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//            Log.i(TAG, "Permission granted");
+//            p.resolve(createRequestPermissionResponse(true, false).toString());
+//          }
+//
+//          if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
+//            Log.i(TAG, "Permission denied");
+//            p.resolve(createRequestPermissionResponse(false, true).toString());
+//          }
+//        }
       } else {
         Log.e(TAG, "Permission promise not found");
       }
@@ -549,6 +668,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     writableNativeMap.putBoolean("rejected", Boolean.TRUE.equals(rejected));
     return writableNativeMap;
   }
+
 
   @Override
   public void onNewIntent(Intent intent) {
