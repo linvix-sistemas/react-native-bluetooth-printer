@@ -5,5 +5,5 @@ import androidx.annotation.Nullable;
 import java.util.Map;
 
 public interface BluetoothServiceStateObserver {
-  void onBluetoothServiceStateChanged(int state, Map<String, Object> bundle, @Nullable Exception exception);
+  void onBluetoothServiceStateChanged(int state, Map<String, Object> bundle, Exception exception);
 }

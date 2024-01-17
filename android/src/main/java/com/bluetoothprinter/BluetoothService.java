@@ -43,7 +43,6 @@ public class BluetoothService {
   public static final int MESSAGE_STATE_CHANGE = 4;
   public static final int MESSAGE_READ = 5;
   public static final int MESSAGE_WRITE = 6;
-  public static final int MESSAGE_DEVICE_NAME = 7;
   public static final int MESSAGE_CONNECTION_LOST = 8;
   public static final int MESSAGE_UNABLE_CONNECT = 9;
   public static final int MESSAGE_UNABLE_PRINT = 10;
@@ -95,7 +94,7 @@ public class BluetoothService {
     infoObservers(state, bundle, null);
   }
 
-  private String getStateName(int state) {
+  public String getStateName(int state) {
     if (STATE_NONE == state) {
       return "STATE_NONE";
     }
@@ -149,8 +148,11 @@ public class BluetoothService {
       // Start the thread to manage the connection and perform transmissions
       mConnectedThread = new ConnectedThread(device);
       mConnectedThread.start();
-      setState(STATE_CONNECTING, null);
     }
+  }
+
+  public synchronized boolean isConnectedThreadRunning() {
+    return mConnectedThread != null && mConnectedThread.isAlive();
   }
 
   /**
@@ -184,16 +186,16 @@ public class BluetoothService {
    * Indicate that the connection attempt failed.
    */
   private void connectionFailed(Exception e) {
-    setState(STATE_NONE, null);
     infoObservers(MESSAGE_UNABLE_CONNECT, null, e);
+    setState(STATE_NONE, null);
   }
 
   /**
    * Indicate that the connection was lost and notify the UI Activity.
    */
   private void connectionLost(@Nullable Exception exception) {
-    setState(STATE_NONE, null);
     infoObservers(MESSAGE_CONNECTION_LOST, null, exception);
+    setState(STATE_NONE, null);
   }
 
   /**
@@ -214,6 +216,9 @@ public class BluetoothService {
     @SuppressLint("MissingPermission")
     @Override
     public void run() {
+      //
+      setState(STATE_CONNECTING, null);
+
       Log.i(TAG, "BEGIN mConnectThread");
       setName("ConnectThread");
       Map<String, Object> bundle = new HashMap<String, Object>();

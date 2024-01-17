@@ -10,16 +10,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
@@ -28,7 +25,6 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
@@ -37,9 +33,6 @@ import com.facebook.react.module.annotations.ReactModule;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.facebook.react.modules.core.PermissionAwareActivity;
 import com.facebook.react.modules.core.PermissionListener;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -67,14 +60,6 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   private static final int REQUEST_CONNECT_DEVICE = 1;
   private static final int REQUEST_ENABLE_BT = 2;
   private static final int REQUEST_PERMISSION = 3;
-
-  public static final int MESSAGE_STATE_CHANGE = BluetoothService.MESSAGE_STATE_CHANGE;
-  public static final int MESSAGE_READ = BluetoothService.MESSAGE_READ;
-  public static final int MESSAGE_WRITE = BluetoothService.MESSAGE_WRITE;
-  public static final int MESSAGE_DEVICE_NAME = BluetoothService.MESSAGE_DEVICE_NAME;
-
-  public static final int MESSAGE_CONNECTION_LOST = BluetoothService.MESSAGE_CONNECTION_LOST;
-  public static final int MESSAGE_UNABLE_CONNECT = BluetoothService.MESSAGE_UNABLE_CONNECT;
 
   private static final Map<String, Promise> promiseMap = Collections.synchronizedMap(new HashMap<String, Promise>());
   private static final String PROMISE_ENABLE_BT = "ENABLE_BT";
@@ -144,7 +129,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   @ReactMethod
   @SuppressLint("MissingPermission")
   public void requestPermission(final Promise promise) {
-    Log.e(TAG, "Requesting permission to access bluetooth device");
+    Log.i(TAG, "Requesting permission to access bluetooth device");
     // check if have access location
     int permissionChecked = ContextCompat.checkSelfPermission(reactContext, Manifest.permission.ACCESS_FINE_LOCATION);
     if (permissionChecked == PackageManager.PERMISSION_DENIED) {
@@ -172,7 +157,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
       Log.e(TAG, "Bluetooth not supported on this device");
-      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT);
+      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
       return;
     }
 
@@ -217,7 +202,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     if (mService != null) {
       promise.resolve(mService.getState() == BluetoothService.STATE_CONNECTED);
     } else {
-      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
+      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enabled on this device"));
     }
   }
 
@@ -225,14 +210,14 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   public void scanDevices(final Promise promise) {
     BluetoothAdapter adapter = this.getBluetoothAdapter();
     if (adapter == null) {
-      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT);
+      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
     } else {
       cancelScanDiscovery();
 
       sendReactNativeEventArray(EVENT_DEVICE_ALREADY_PAIRED, createMapDevices(getBondedDevices().values()));
 
       if (ActivityCompat.checkSelfPermission(reactContext.getCurrentActivity(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-        promise.reject("PERMISSION_NOT_GRANTED");
+        promise.reject("PERMISSION_NOT_GRANTED", new Exception("Permission required to search for devices was not granted"));
         return;
       }
 
@@ -248,69 +233,82 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
   @ReactMethod
   public void connect(String address, final Promise promise) {
     BluetoothAdapter adapter = this.getBluetoothAdapter();
-    if (adapter != null && adapter.isEnabled()) {
-      BluetoothDevice device = adapter.getRemoteDevice(address);
-      promiseMap.put(PROMISE_CONNECT, promise);
-      mService.connect(device);
+    if (adapter == null) {
+      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
     } else {
-      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
+      if (adapter.isEnabled()) {
+        BluetoothDevice device = adapter.getRemoteDevice(address);
+        promiseMap.put(PROMISE_CONNECT, promise);
+        mService.connect(device);
+      } else {
+        promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enabled on this device"));
+      }
     }
   }
 
   @ReactMethod
   public void disconnect(String address, final Promise promise) {
     BluetoothAdapter adapter = this.getBluetoothAdapter();
-    if (adapter != null && adapter.isEnabled()) {
-      try {
-        mService.stop();
-      } catch (Exception e) {
-        Log.e(TAG, e.getMessage());
-      }
-      promise.resolve(address);
+    if (adapter == null) {
+      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
     } else {
-      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
+      if (adapter.isEnabled()) {
+        try {
+          mService.stop();
+        } catch (Exception e) {
+          Log.e(TAG, e.getMessage());
+        }
+        promise.resolve(address);
+      } else {
+        promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enabled on this device"));
+      }
     }
-
   }
 
   @ReactMethod
   public void unpair(String address, final Promise promise) {
     BluetoothAdapter adapter = this.getBluetoothAdapter();
-    if (adapter != null && adapter.isEnabled()) {
-      BluetoothDevice device = adapter.getRemoteDevice(address);
-      this.unpairDevice(device);
-      promise.resolve(address);
+    if (adapter == null) {
+      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
     } else {
-      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
+      if (adapter.isEnabled()) {
+        BluetoothDevice device = adapter.getRemoteDevice(address);
+        this.unpairDevice(device);
+        promise.resolve(address);
+      } else {
+        promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enabled on this device"));
+      }
     }
-
   }
 
   @ReactMethod
   public void printRaw(ReadableArray message, final Promise promise) {
     BluetoothAdapter adapter = this.getBluetoothAdapter();
-    if (mService != null && adapter.isEnabled()) {
-
-      if (mService.getState() == BluetoothService.STATE_CONNECTED) {
-
-        byte[] decoded = new byte[message.size()];
-
-        for (int i = 0; i < message.size(); i++) {
-          decoded[i] = new Integer(message.getInt(i)).byteValue();
-        }
-
-        try {
-          mService.write(decoded);
-          promise.resolve(true);
-        } catch (Exception e) {
-          promise.reject(BluetoothService.UNABLE_PRINT, e);
-        }
-      } else {
-        promise.reject(BluetoothService.NOT_CONNECTED, new Exception("Not connected with bluetooth printer"));
-      }
-
+    if (adapter == null) {
+      promise.reject(EVENT_BLUETOOTH_NOT_SUPPORT, new Exception("Bluetooth not supported on this device"));
     } else {
-      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enable on this device"));
+      if (mService != null && adapter.isEnabled()) {
+
+        if (mService.getState() == BluetoothService.STATE_CONNECTED) {
+          byte[] decoded = new byte[message.size()];
+
+          for (int i = 0; i < message.size(); i++) {
+            decoded[i] = new Integer(message.getInt(i)).byteValue();
+          }
+
+          try {
+            mService.write(decoded);
+            promise.resolve(true);
+          } catch (Exception e) {
+            promise.reject(BluetoothService.UNABLE_PRINT, e);
+          }
+        } else {
+          promise.reject(BluetoothService.NOT_CONNECTED, new Exception("Not connected to any device"));
+        }
+
+      } else {
+        promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enabled on this device"));
+      }
     }
   }
 
@@ -383,7 +381,7 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
             promise.resolve(createEnableBluetoothResponse(false).toString());
           }
         } else {
-          // User did not enable Bluetooth or an error occured
+          // User did not enable Bluetooth or an error occurred
           Log.d(TAG, BluetoothService.BLUETOOTH_NOT_ENABLED);
           if (promise != null) {
             promise.reject(createEnableBluetoothResponse(false, true).toString());
@@ -430,9 +428,9 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
 
   @Override
   public void onBluetoothServiceStateChanged(int state, Map<String, Object> bundle, Exception exception) {
-    Log.d(TAG, "on bluetoothServiceStatChange:" + state);
+    Log.i(TAG, "onBluetoothServiceStateChanged: " + state + " (" + mService.getStateName(state) + ")");
+
     switch (state) {
-      case BluetoothService.MESSAGE_DEVICE_NAME:
       case BluetoothService.STATE_CONNECTED: {
         mConnectedDeviceName = (String) bundle.get(BluetoothService.DEVICE_NAME);
         mConnectedDeviceAddress = (String) bundle.get(BluetoothService.DEVICE_ADDRESS);
@@ -448,28 +446,35 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
           p.resolve(params.toString());
         }
 
+        Log.i(TAG, "Connection to the device was successful");
+
         sendReactNativeEvent(EVENT_CONNECTED, params);
       }
 
-      case MESSAGE_CONNECTION_LOST: {
+      case BluetoothService.MESSAGE_CONNECTION_LOST: {
+        Log.e(TAG, "Connection with device has been lost");
         sendReactNativeEvent(EVENT_CONNECTION_LOST, null);
       }
 
-      case MESSAGE_UNABLE_CONNECT: {
-        Promise p = promiseMap.remove(PROMISE_CONNECT);
+      case BluetoothService.MESSAGE_UNABLE_CONNECT: {
+        Log.e(TAG, "Unable to connect: " + mService.getStateName(mService.getState()));
 
-        if (p == null) {
+        // if only current status is connecting (request connect by user)
+        if (mService.getState() == BluetoothService.STATE_CONNECTING) {
+          Promise p = promiseMap.remove(PROMISE_CONNECT);
 
-          WritableNativeMap params = new WritableNativeMap();
+          if (p != null) {
+            p.reject(BluetoothService.UNABLE_CONNECT, exception);
+          } else {
+            WritableNativeMap params = new WritableNativeMap();
 
-          if (exception != null) {
-            params.putString("message", exception.getMessage());
-            params.putString("stack_trace", Arrays.toString(exception.getStackTrace()));
+            if (exception != null) {
+              params.putString("message", exception.getMessage());
+              params.putString("stack_trace", Arrays.toString(exception.getStackTrace()));
+            }
+
+            sendReactNativeEvent(EVENT_UNABLE_CONNECT, params);
           }
-
-          sendReactNativeEvent(EVENT_UNABLE_CONNECT, params);
-        } else {
-          p.reject(BluetoothService.UNABLE_CONNECT, exception);
         }
       }
       default: {
