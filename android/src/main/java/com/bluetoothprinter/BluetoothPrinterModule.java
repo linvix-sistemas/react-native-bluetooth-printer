@@ -52,7 +52,7 @@ import java.util.Set;
 @ReactModule(name = BluetoothPrinterModule.NAME)
 public class BluetoothPrinterModule extends ReactContextBaseJavaModule implements PermissionListener, ActivityEventListener, BluetoothServiceStateObserver {
   public static final String NAME = "BluetoothPrinter";
-  private static final String TAG = NAME;
+  private static final String TAG = "RNBluetoothPrinter";
 
   private final ReactApplicationContext reactContext;
 
@@ -299,15 +299,18 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
           decoded[i] = new Integer(message.getInt(i)).byteValue();
         }
 
-        mService.write(decoded);
-
-        promise.resolve(true);
+        try {
+          mService.write(decoded);
+          promise.resolve(true);
+        } catch (Exception e) {
+          promise.reject(BluetoothService.UNABLE_PRINT, e);
+        }
       } else {
-        promise.reject("NOT_CONNECTED_TO_PRINTER");
+        promise.reject(BluetoothService.NOT_CONNECTED, new Exception("Not connected with bluetooth printer"));
       }
 
     } else {
-      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED);
+      promise.reject(BluetoothService.BLUETOOTH_NOT_ENABLED, new Exception("Bluetooth not enable on this device"));
     }
   }
 
@@ -425,9 +428,8 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
     }
   };
 
-
   @Override
-  public void onBluetoothServiceStateChanged(int state, Map<String, Object> bundle) {
+  public void onBluetoothServiceStateChanged(int state, Map<String, Object> bundle, Exception exception) {
     Log.d(TAG, "on bluetoothServiceStatChange:" + state);
     switch (state) {
       case BluetoothService.MESSAGE_DEVICE_NAME:
@@ -457,9 +459,17 @@ public class BluetoothPrinterModule extends ReactContextBaseJavaModule implement
         Promise p = promiseMap.remove(PROMISE_CONNECT);
 
         if (p == null) {
-          sendReactNativeEvent(EVENT_UNABLE_CONNECT, null);
+
+          WritableNativeMap params = new WritableNativeMap();
+
+          if (exception != null) {
+            params.putString("message", exception.getMessage());
+            params.putString("stack_trace", Arrays.toString(exception.getStackTrace()));
+          }
+
+          sendReactNativeEvent(EVENT_UNABLE_CONNECT, params);
         } else {
-          p.reject(BluetoothService.UNABLE_CONNECT);
+          p.reject(BluetoothService.UNABLE_CONNECT, exception);
         }
       }
       default: {

@@ -8,9 +8,12 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -19,12 +22,8 @@ import java.util.*;
  */
 public class BluetoothService {
   // Debugging
-  private static final String TAG = "BluetoothService";
-  private static final boolean DEBUG = true;
+  private static final String TAG = "RNBluetoothPrinter";
 
-
-  // Name for the SDP record when creating server socket
-  private static final String NAME = "BTPrinter";
   //UUID must be this
   // Unique UUID for this application
   private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
@@ -47,6 +46,7 @@ public class BluetoothService {
   public static final int MESSAGE_DEVICE_NAME = 7;
   public static final int MESSAGE_CONNECTION_LOST = 8;
   public static final int MESSAGE_UNABLE_CONNECT = 9;
+  public static final int MESSAGE_UNABLE_PRINT = 10;
 
   // Key names received from the BluetoothService Handler
   public static final String DEVICE_NAME = "device_name";
@@ -54,7 +54,12 @@ public class BluetoothService {
   public static final String TOAST = "toast";
 
   public static final String BLUETOOTH_NOT_ENABLED = "BLUETOOTH_NOT_ENABLED";
+
+  public static final String NOT_CONNECTED = "NOT_CONNECTED";
+
   public static final String UNABLE_CONNECT = "UNABLE_CONNECT";
+
+  public static final String UNABLE_PRINT = "UNABLE_PRINT";
 
   public static String ErrorMessage = "No_Error_Message";
 
@@ -85,26 +90,27 @@ public class BluetoothService {
    * @param state An integer defining the current connection state
    */
   private synchronized void setState(int state, Map<String, Object> bundle) {
-    if (DEBUG) Log.d(TAG, "setState() " + getStateName(mState) + " -> " + getStateName(state));
+    Log.d(TAG, "setState() " + getStateName(mState) + " -> " + getStateName(state));
     mState = state;
-    infoObservers(state, bundle);
+    infoObservers(state, bundle, null);
   }
 
   private String getStateName(int state) {
-    String name = "UNKNOW:" + state;
     if (STATE_NONE == state) {
-      name = "STATE_NONE";
-    } else if (STATE_CONNECTED == state) {
-      name = "STATE_CONNECTED";
-    } else if (STATE_CONNECTING == state) {
-      name = "STATE_CONNECTING";
+      return "STATE_NONE";
     }
-    return name;
+    if (STATE_CONNECTED == state) {
+      return "STATE_CONNECTED";
+    }
+    if (STATE_CONNECTING == state) {
+      return "STATE_CONNECTING";
+    }
+    return "UNKNOWN:" + state;
   }
 
-  private synchronized void infoObservers(int code, Map<String, Object> bundle) {
+  private synchronized void infoObservers(int code, Map<String, Object> bundle, Exception exception) {
     for (BluetoothServiceStateObserver ob : observers) {
-      ob.onBluetoothServiceStateChanged(code, bundle);
+      ob.onBluetoothServiceStateChanged(code, bundle, exception);
     }
   }
 
@@ -130,14 +136,12 @@ public class BluetoothService {
       connectedDevice = mConnectedThread.bluetoothDevice();
     }
 
+    // device already connected into this device with same address
     if (mState == STATE_CONNECTED && connectedDevice != null && connectedDevice.getAddress().equals(device.getAddress())) {
-
-      // connected already
       Map<String, Object> bundle = new HashMap<String, Object>();
       bundle.put(DEVICE_NAME, device.getName());
       bundle.put(DEVICE_ADDRESS, device.getAddress());
       setState(STATE_CONNECTED, bundle);
-
     } else {
       // Cancel any thread currently running a connection
       this.stop();
@@ -165,7 +169,7 @@ public class BluetoothService {
    * @param out The bytes to write
    * @see ConnectedThread#write(byte[])
    */
-  public void write(byte[] out) {
+  public void write(byte[] out) throws Exception {
     // Create temporary object
     ConnectedThread r;
     // Synchronize a copy of the ConnectedThread
@@ -179,17 +183,17 @@ public class BluetoothService {
   /**
    * Indicate that the connection attempt failed.
    */
-  private void connectionFailed() {
+  private void connectionFailed(Exception e) {
     setState(STATE_NONE, null);
-    infoObservers(MESSAGE_UNABLE_CONNECT, null);
+    infoObservers(MESSAGE_UNABLE_CONNECT, null, e);
   }
 
   /**
    * Indicate that the connection was lost and notify the UI Activity.
    */
-  private void connectionLost() {
+  private void connectionLost(@Nullable Exception exception) {
     setState(STATE_NONE, null);
-    infoObservers(MESSAGE_CONNECTION_LOST, null);
+    infoObservers(MESSAGE_CONNECTION_LOST, null, exception);
   }
 
   /**
@@ -218,12 +222,16 @@ public class BluetoothService {
       mAdapter.cancelDiscovery();
 
       BluetoothSocket tmp = null;
+      Exception exception = null;
 
       // try to connect with socket inner method firstly.
       for (int i = 1; i <= 3; i++) {
         try {
           tmp = (BluetoothSocket) mmDevice.getClass().getMethod("createRfcommSocket", int.class).invoke(mmDevice, i);
         } catch (Exception e) {
+          Log.e(TAG, "createRfcommSocket() failed:", e);
+          e.printStackTrace();
+          exception = e;
         }
         if (tmp != null) {
           mmSocket = tmp;
@@ -237,11 +245,11 @@ public class BluetoothService {
           tmp = mmDevice.createRfcommSocketToServiceRecord(MY_UUID);
         } catch (IOException e) {
           e.printStackTrace();
-          Log.e(TAG, "create() failed", e);
+          exception = e;
         }
         if (tmp == null) {
-          Log.e(TAG, "create() failed: Socket NULL.");
-          connectionFailed();
+          Log.e(TAG, "createRfcommSocketToServiceRecord() failed:", exception);
+          connectionFailed(exception);
           return;
         }
       }
@@ -254,7 +262,8 @@ public class BluetoothService {
         mmSocket.connect();
       } catch (Exception e) {
         e.printStackTrace();
-        connectionFailed();
+        connectionFailed(e);
+
         // Close the socket
         try {
           mmSocket.close();
@@ -263,7 +272,6 @@ public class BluetoothService {
         }
         return;
       }
-
 
       Log.d(TAG, "create ConnectedThread");
       InputStream tmpIn = null;
@@ -300,15 +308,15 @@ public class BluetoothService {
             // Send the obtained bytes to the UI Activity
             bundle = new HashMap<String, Object>();
             bundle.put("bytes", bytes);
-            infoObservers(MESSAGE_READ, bundle);
+            infoObservers(MESSAGE_READ, bundle, null);
           } else {
             Log.e(TAG, "disconnected");
-            connectionLost();
+            connectionLost(null);
             break;
           }
         } catch (IOException e) {
           Log.e(TAG, "disconnected", e);
-          connectionLost();
+          connectionLost(e);
           break;
         }
       }
@@ -320,16 +328,18 @@ public class BluetoothService {
      *
      * @param buffer The bytes to write
      */
-    public void write(byte[] buffer) {
+    public void write(byte[] buffer) throws Exception {
       try {
         mmOutStream.write(buffer);
-        mmOutStream.flush();//清空缓存
-        Log.i("BTPWRITE", new String(buffer, "GBK"));
+        mmOutStream.flush(); // clean cache
+        Log.i(TAG, new String(buffer, StandardCharsets.UTF_8));
         Map<String, Object> bundle = new HashMap<String, Object>();
         bundle.put("bytes", buffer);
-        infoObservers(MESSAGE_WRITE, bundle);
+        infoObservers(MESSAGE_WRITE, bundle, null);
       } catch (IOException e) {
         Log.e(TAG, "Exception during write", e);
+        infoObservers(MESSAGE_UNABLE_PRINT, null, e);
+        throw e;
       }
     }
 
@@ -344,7 +354,7 @@ public class BluetoothService {
     public void cancel() {
       try {
         mmSocket.close();
-        connectionLost();
+        connectionLost(null);
       } catch (IOException e) {
         Log.e(TAG, "close() of connect socket failed", e);
       }
